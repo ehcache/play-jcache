@@ -1,0 +1,4 @@
+= Play module providing a JCache based cache API implementation
+
+This project provides a https://www.playframework.com/documentation/2.5.x/ModuleDirectory[module] for https://www.playframework.com[Play Framework]
+that enables the use of https://github.com/jsr107/jsr107spec[JCache compliant] cache implementations as providers for the https://www.playframework.com/documentation/2.5.x/ScalaCache[Play Cache API].
