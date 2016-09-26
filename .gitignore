@@ -1,0 +1,7 @@
+# Play
+target/
+project/project/
+
+# IntelliJ
+.idea/
+*.iml
