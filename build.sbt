@@ -35,7 +35,13 @@ lazy val plugin = (project in file("plugin"))
     resolvers += "Typesafe Maven Repository" at "https://dl.bintray.com/typesafe/maven-releases/",
     libraryDependencies += "com.typesafe.play" %% "play" % play.core.PlayVersion.current % "provided",
     libraryDependencies += "com.typesafe.play" %% "play-cache" % play.core.PlayVersion.current % "provided",
+
     libraryDependencies += "com.typesafe.play" %% "play-test" % play.core.PlayVersion.current % "provided,test",
+    libraryDependencies += "com.typesafe.play" %% "play-specs2" % play.core.PlayVersion.current % "provided,test",
+
+    libraryDependencies += "javax.cache" % "cache-api" % "1.0.0" % "provided",
+    libraryDependencies += "org.ehcache" % "ehcache" % "3.1.2" % "provided",
+
     publishTo <<= version { v: String =>
       val nexus = "https://oss.sonatype.org/"
       if (v.trim.endsWith("SNAPSHOT")) Some("snapshots" at nexus + "content/repositories/snapshots")
