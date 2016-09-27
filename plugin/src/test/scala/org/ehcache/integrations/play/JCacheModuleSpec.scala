@@ -3,21 +3,16 @@
  */
 package org.ehcache.integrations.play
 
-import java.util.concurrent.atomic.AtomicInteger
-import javax.cache.configuration.MutableConfiguration
-import javax.inject._
+import javax.cache.CacheManager
 
-import org.joda.time.DateTime
 import play.api.cache.{CacheApi, Cached}
-import play.api.http
-import play.api.mvc.{Action, Results}
 import play.api.test._
-import play.cache.NamedCache
+import play.cache.NamedCacheImpl
+import play.inject.Bindings.bind
 
-import scala.concurrent.duration._
-import scala.util.Random
+import scala.util.Try
 
-class CachedSpec extends PlaySpecification {
+class JCacheModuleSpec extends PlaySpecification {
 
   sequential
 
@@ -26,198 +21,74 @@ class CachedSpec extends PlaySpecification {
     "play.modules.enabled" -> Seq("org.ehcache.integrations.play.JCacheModule", "play.api.inject.BuiltinModule")
   ))
 
-  val modules = play.api.inject.Modules.locate(play.api.Environment.simple(), configuration)
-
   "play-jcache" should {
     "provide JCacheModule" in {
+      val modules = play.api.inject.Modules.locate(play.api.Environment.simple(), configuration)
       (modules.find { module => module.isInstanceOf[JCacheModule] }.isDefined)
     }
   }
 
-  "the cached action" should {
-    "cache values using injected CachedApi" in new WithApplication(
-        _.configure(configuration)
-    ) {
-      val controller = app.injector.instanceOf[CachedController]
-      val result1 = controller.action(FakeRequest()).run()
-      contentAsString(result1) must_== "1"
-      controller.invoked.get() must_== 1
-      val result2 = controller.action(FakeRequest()).run()
-      contentAsString(result2) must_== "1"
-      controller.invoked.get() must_== 1
+  "JCacheModule" should {
 
-      // Test that the same headers are added
-      header(ETAG, result2) must_== header(ETAG, result1)
-      header(EXPIRES, result2) must_== header(EXPIRES, result1)
-    }
-
-    "cache values using named injected CachedApi" in new WithApplication(
-      _.configure(configuration).configure("play.cache.bindCaches" -> Seq("custom"))
-    ) {
-      val controller = app.injector.instanceOf[NamedCachedController]
-      val result1 = controller.action(FakeRequest()).run()
-      contentAsString(result1) must_== "1"
-      controller.invoked.get() must_== 1
-      val result2 = controller.action(FakeRequest()).run()
-      contentAsString(result2) must_== "1"
-      controller.invoked.get() must_== 1
-
-      // Test that the same headers are added
-      header(ETAG, result2) must_== header(ETAG, result1)
-      header(EXPIRES, result2) must_== header(EXPIRES, result1)
-
-      // Test that the values are in the right cache
-      app.injector.instanceOf[CacheApi].get("foo") must beNone
-      controller.isCached("foo-etag") must beTrue
-    }
-
-    "cache values using Application's Cached" in new WithApplication(
+    "provide a binding for javax.cache.CacheManager" in new WithApplication(
       _.configure(configuration)
     ) {
-      val invoked = new AtomicInteger()
-      val action = Cached(_ => "foo") {
-        (Action(Results.Ok("" + invoked.incrementAndGet())))
-      }
-      val result1 = action(FakeRequest()).run()
-      contentAsString(result1) must_== "1"
-      invoked.get() must_== 1
-      val result2 = action(FakeRequest()).run()
-      contentAsString(result2) must_== "1"
-
-      // Test that the same headers are added
-      header(ETAG, result2) must_== header(ETAG, result1)
-      header(EXPIRES, result2) must_== header(EXPIRES, result1)
-
-      invoked.get() must_== 1
+      app.injector.instanceOf[CacheManager] must not beNull
     }
 
-    "use etags for values" in new WithApplication(
+    "provide a default binding for play.api.cache.CacheApi" in new WithApplication(
       _.configure(configuration)
     ) {
-      val invoked = new AtomicInteger()
-      val action = Cached(_ => "foo")(Action(Results.Ok("" + invoked.incrementAndGet())))
-      val result1 = action(FakeRequest()).run()
-      status(result1) must_== 200
-      invoked.get() must_== 1
-      val etag = header(ETAG, result1)
-      etag must beSome(matching("""([wW]/)?"([^"]|\\")*"""")) //"""
-      val result2 = action(FakeRequest().withHeaders(IF_NONE_MATCH -> etag.get)).run()
-      status(result2) must_== NOT_MODIFIED
-      invoked.get() must_== 1
+      app.injector.instanceOf[CacheApi] must not beNull
     }
 
-    "support wildcard etags" in new WithApplication(
+    "provide a default binding for play.cache.CacheApi" in new WithApplication(
       _.configure(configuration)
     ) {
-      val invoked = new AtomicInteger()
-      val action = Cached(_ => "foo")(Action(Results.Ok("" + invoked.incrementAndGet())))
-      val result1 = action(FakeRequest()).run()
-      status(result1) must_== 200
-      invoked.get() must_== 1
-      val result2 = action(FakeRequest().withHeaders(IF_NONE_MATCH -> "*")).run()
-      status(result2) must_== NOT_MODIFIED
-      invoked.get() must_== 1
+      app.injector.instanceOf[play.cache.CacheApi] must not beNull
     }
 
-    "work with etag cache misses" in new WithApplication(
-      _.configure(configuration)
+    "provide bindings for the default cache" in new WithApplication(
+        _.configure(configuration).configure("play.cache.defaultCache" -> "foobar")
     ) {
-      val action = Cached(_.uri)(Action(Results.Ok))
-      val resultA = action(FakeRequest("GET", "/a")).run()
-      status(resultA) must_== 200
-      status(action(FakeRequest("GET", "/a").withHeaders(IF_NONE_MATCH -> "foo")).run) must_== 200
-      status(action(FakeRequest("GET", "/b").withHeaders(IF_NONE_MATCH -> header(ETAG, resultA).get)).run) must_== 200
-      status(action(FakeRequest("GET", "/c").withHeaders(IF_NONE_MATCH -> "*")).run) must_== 200
+      val injector = app.injector
+      val name = new NamedCacheImpl("foobar")
+      injector.instanceOf(bind(classOf[javax.cache.Cache[String, Any]]).qualifiedWith(name)) must not beNull;
+      injector.instanceOf(bind(classOf[CacheApi]).qualifiedWith(name)) must not beNull;
+      injector.instanceOf(bind(classOf[play.cache.CacheApi]).qualifiedWith(name)) must not beNull;
+      injector.instanceOf(bind(classOf[Cached]).qualifiedWith(name)) must not beNull;
+    }
+
+    "provide bindings for the explicitly bound caches" in new WithApplication(
+      _.configure(configuration).configure("play.cache.bindCaches" -> Seq("foobar"))
+    ) {
+      val injector = app.injector
+      val name = new NamedCacheImpl("foobar")
+      injector.instanceOf(bind(classOf[javax.cache.Cache[String, Any]]).qualifiedWith(name)) must not beNull;
+      injector.instanceOf(bind(classOf[CacheApi]).qualifiedWith(name)) must not beNull;
+      injector.instanceOf(bind(classOf[play.cache.CacheApi]).qualifiedWith(name)) must not beNull;
+      injector.instanceOf(bind(classOf[Cached]).qualifiedWith(name)) must not beNull;
+    }
+
+    "not create bound caches when not asked to" in {
+      Try {
+        new WithApplication(_.configure(configuration)
+          .configure("play.cache.bindCaches" -> Seq("foobar"))
+          .configure("play.cache.createBoundCaches" -> "false")) {
+          val injector = app.injector
+          val name = new NamedCacheImpl("foobar")
+          injector.instanceOf(bind(classOf[CacheApi]).qualifiedWith(name)) must not beNull
+        }
+      } must beAFailedTry
     }
   }
 
-  val dummyAction = Action { request =>
-    Results.Ok {
-      Random.nextInt().toString
-    }
-  }
-
-  val notFoundAction = Action { request =>
-    Results.NotFound(Random.nextInt().toString)
-  }
-
-  "Cached EssentialAction composition" should {
-    "cache infinite ok results" in new WithApplication(
-      _.configure(configuration)
-    ) {
-      val cacheOk = Cached.empty { x =>
-        x.uri
-      }.includeStatus(200)
-
-      val actionOk = cacheOk.build(dummyAction)
-      val actionNotFound = cacheOk.build(notFoundAction)
-
-      val res0 = contentAsString(actionOk(FakeRequest("GET", "/a")).run())
-      val res1 = contentAsString(actionOk(FakeRequest("GET", "/a")).run())
-
-      // println(("res0", header(EXPIRES, actionOk(FakeRequest("GET", "/a")).run)))
-
-      res0 must equalTo(res1)
-
-      val res2 = contentAsString(actionNotFound(FakeRequest("GET", "/b")).run())
-      val res3 = contentAsString(actionNotFound(FakeRequest("GET", "/b")).run())
-
-      res2 must not equalTo (res3)
-    }
-
-    "cache everything for infinite" in new WithApplication(
-      _.configure(configuration)
-    ) {
-      val cache = Cached.everything { x =>
-        x.uri
-      }
-
-      val actionOk = cache.build(dummyAction)
-      val actionNotFound = cache.build(notFoundAction)
-
-      val res0 = contentAsString(actionOk(FakeRequest("GET", "/a")).run())
-      val res1 = contentAsString(actionOk(FakeRequest("GET", "/a")).run)
-
-      res0 must equalTo(res1)
-
-      val res2 = contentAsString(actionNotFound(FakeRequest("GET", "/b")).run())
-      val res3 = contentAsString(actionNotFound(FakeRequest("GET", "/b")).run())
-
-      res2 must equalTo(res3)
-    }
-
-    "cache everything one hour" in new WithApplication(
-      _.configure(configuration)
-    ) {
-      val cache = Cached.everything(x => x.uri, 3600)
-
-      val actionOk = cache.build(dummyAction)
-      val actionNotFound = cache.build(notFoundAction)
-
-      val res0 = header(EXPIRES, actionOk(FakeRequest("GET", "/a")).run())
-      val res1 = header(EXPIRES, actionNotFound(FakeRequest("GET", "/b")).run())
-
-      def toDuration(header: String) = {
-        val now = DateTime.now().getMillis
-        val target = http.dateFormat.parseDateTime(header).getMillis
-        Duration(target - now, MILLISECONDS)
-      }
-
-      val beInOneHour = beBetween(
-        (Duration(1, HOURS) - Duration(10, SECONDS)).toMillis,
-        Duration(1, HOURS).toMillis)
-
-      res0.map(toDuration).map(_.toMillis) must beSome(beInOneHour)
-      res1.map(toDuration).map(_.toMillis) must beSome(beInOneHour)
-
-    }
-  }
-
-  "CacheApi" should {
+  "JCacheApi" should {
     "get items from cache" in new WithApplication(
       _.configure(configuration)
     ) {
       val defaultCache = app.injector.instanceOf[CacheApi]
+
       defaultCache.set("foo", "bar")
       defaultCache.get[String]("foo") must beSome("bar")
 
@@ -237,7 +108,7 @@ class CachedSpec extends PlaySpecification {
       defaultCache.get[Unit]("unit") must beSome(())
     }
 
-    "doesnt give items from cache with wrong type" in new WithApplication(
+    "not get items from cache with the wrong type" in new WithApplication(
       _.configure(configuration)
     ) {
       val defaultCache = app.injector.instanceOf[CacheApi]
@@ -281,35 +152,4 @@ class CachedSpec extends PlaySpecification {
       defaultCache.get[Any]("unit") must beSome(())
     }
   }
-
-  "JCacheModule" should {
-    "support binding multiple different caches" in new WithApplication(
-      _.configure(configuration).configure("play.cache.bindCaches" -> Seq("custom"))
-    ) {
-      val component = app.injector.instanceOf[SomeComponent]
-      val defaultCache = app.injector.instanceOf[CacheApi]
-      component.set("foo", "bar")
-      defaultCache.get("foo") must beNone
-      component.get("foo") must beSome("bar")
-    }
-  }
-
-}
-
-class SomeComponent @Inject()(@NamedCache("custom") cache: CacheApi) {
-  def get(key: String) = cache.get[String](key)
-  def set(key: String, value: String) = cache.set(key, value)
-}
-
-class CachedController @Inject() (cached: Cached) {
-  val invoked = new AtomicInteger()
-  val action = cached(_ => "foo")(Action(Results.Ok("" + invoked.incrementAndGet())))
-}
-
-class NamedCachedController @Inject() (
-                                        @NamedCache("custom") val cache: CacheApi,
-                                        @NamedCache("custom") val cached: Cached) {
-  val invoked = new AtomicInteger()
-  val action = cached(_ => "foo")(Action(Results.Ok("" + invoked.incrementAndGet())))
-  def isCached(key: String): Boolean = cache.get[String](key).isDefined
 }
