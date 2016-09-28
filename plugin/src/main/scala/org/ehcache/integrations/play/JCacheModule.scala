@@ -16,9 +16,10 @@
 
 package org.ehcache.integrations.play
 
+import javax.cache.{Cache, CacheManager, Caching}
 import javax.cache.configuration.MutableConfiguration
+import javax.cache.processor.{EntryProcessor, MutableEntry}
 import javax.inject.{Inject, Provider, Singleton}
-import javax.cache.{Cache, CacheException, CacheManager, Caching}
 
 import com.google.common.primitives.Primitives
 import play.api.cache.{CacheApi, Cached, NamedCache}
@@ -149,23 +150,19 @@ class JCacheApi @Inject()(cache: Cache[String, Any]) extends CacheApi {
   }
 
   def getOrElse[A: ClassTag](key: String, expiration: Duration)(orElse: => A): A = {
-    val current = Option(cache.get(key))
-    if (current.isEmpty) {
-      if (cache.putIfAbsent(key, orElse)) {
-        orElse
-      }
-    } else {
-      val filtered = filter(current.get)
-      if (filtered.isEmpty) {
-        //this isn't right!
-        if (cache.replace(key, current.get, orElse)) {
+    cache.invoke(key, new EntryProcessor[String, Any, A] {
+      def process(entry: MutableEntry[String, Any], arguments: AnyRef*): A = {
+        if (entry.exists()) {
+          filter(entry.getValue()).getOrElse({
+            entry.setValue(orElse)
+            orElse
+          })
+        } else {
+          entry.setValue(orElse)
           orElse
         }
-      } else {
-        filtered.get
       }
-    }
-    getOrElse(key, expiration)(orElse)
+    })
   }
 
   def remove(key: String) = {
