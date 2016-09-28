@@ -42,6 +42,8 @@ lazy val plugin = (project in file("plugin"))
     libraryDependencies += "javax.cache" % "cache-api" % "1.0.0" % "provided",
     libraryDependencies += "org.ehcache" % "ehcache" % "3.1.2" % "provided",
 
+    coverageEnabled := true,
+
     publishTo <<= version { v: String =>
       val nexus = "https://oss.sonatype.org/"
       if (v.trim.endsWith("SNAPSHOT")) Some("snapshots" at nexus + "content/repositories/snapshots")
