@@ -96,7 +96,7 @@ class JCacheModuleSpec extends PlaySpecification {
     }
   }
 
-  "JCacheApi" should {
+  "JCacheApi.get" should {
     "get items from cache" in new WithApplication(
       _.configure(configuration)
     ) {
@@ -163,6 +163,92 @@ class JCacheModuleSpec extends PlaySpecification {
       defaultCache.set("unit", ())
       defaultCache.get("unit") must beSome(())
       defaultCache.get[Any]("unit") must beSome(())
+    }
+  }
+
+  "JCacheApi.getOrElse" should {
+    "get items from cache" in new WithApplication(
+      _.configure(configuration)
+    ) {
+      val defaultCache = app.injector.instanceOf[CacheApi]
+
+      defaultCache.set("foo", "bar")
+      defaultCache.getOrElse("foo")("baz") must beEqualTo("bar")
+
+      defaultCache.set("int", 31)
+      defaultCache.getOrElse("int")(32) must beEqualTo(31)
+
+      defaultCache.set("long", 31l)
+      defaultCache.getOrElse("long")(32L) must beEqualTo(31L)
+
+      defaultCache.set("double", 3.14)
+      defaultCache.getOrElse("double")(2.71) must beEqualTo(3.14)
+
+      defaultCache.set("boolean", true)
+      defaultCache.getOrElse("boolean")(false) must beEqualTo(true)
+    }
+
+    "get items from the cache without giving the type" in new WithApplication(
+      _.configure(configuration)
+    ) {
+      val defaultCache = app.injector.instanceOf[CacheApi]
+      defaultCache.set("foo", "bar")
+      defaultCache.getOrElse[Any]("foo")("baz") must beEqualTo("bar")
+
+      defaultCache.set("baz", false)
+      defaultCache.getOrElse[Any]("baz")(true) must beEqualTo(false)
+
+      defaultCache.set("int", 31)
+      defaultCache.getOrElse[Any]("int")(32) must beEqualTo(31)
+
+      defaultCache.set("unit", ())
+      defaultCache.getOrElse[Any]("unit")("blah") must beEqualTo(())
+    }
+
+    "replace items of the wrong type" in new WithApplication(
+      _.configure(configuration)
+    ) {
+      val defaultCache = app.injector.instanceOf[CacheApi]
+      defaultCache.set("foo", "bar")
+
+      defaultCache.getOrElse("foo")(32) must beEqualTo(32)
+      defaultCache.get("foo") must beSome(32)
+
+      defaultCache.getOrElse("foo")(32L) must beEqualTo(32L)
+      defaultCache.get("foo") must beSome(32L)
+
+      defaultCache.getOrElse("foo")(2.71) must beEqualTo(2.71)
+      defaultCache.get("foo") must beSome(2.71)
+
+      defaultCache.getOrElse("foo")(true) must beEqualTo(true)
+      defaultCache.get("foo") must beSome(true)
+
+      defaultCache.getOrElse("foo")(()) must beEqualTo(())
+      defaultCache.get("foo") must beSome(())
+    }
+
+    "install items when nothing is present" in new WithApplication(
+      _.configure(configuration)
+    ) {
+      val defaultCache = app.injector.instanceOf[CacheApi]
+
+      defaultCache.getOrElse("int")(32) must beEqualTo(32)
+      defaultCache.get("int") must beSome(32)
+
+      defaultCache.getOrElse("long")(32L) must beEqualTo(32L)
+      defaultCache.get("long") must beSome(32L)
+
+      defaultCache.getOrElse("double")(2.71) must beEqualTo(2.71)
+      defaultCache.get("double") must beSome(2.71)
+
+      defaultCache.getOrElse("boolean")(true) must beEqualTo(true)
+      defaultCache.get("boolean") must beSome(true)
+
+      defaultCache.getOrElse("string")("foo") must beEqualTo("foo")
+      defaultCache.get("string") must beSome("foo")
+
+      defaultCache.getOrElse("unit")(()) must beEqualTo(())
+      defaultCache.get("unit") must beSome(())
     }
   }
 }
