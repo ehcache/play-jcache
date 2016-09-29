@@ -23,6 +23,7 @@ import play.api.test._
 import play.cache.NamedCacheImpl
 import play.inject.Bindings.bind
 
+import scala.collection.JavaConversions._
 import scala.util.Try
 
 class JCacheModuleSpec extends PlaySpecification {
@@ -93,6 +94,21 @@ class JCacheModuleSpec extends PlaySpecification {
           injector.instanceOf(bind(classOf[CacheApi]).qualifiedWith(name)) must not beNull
         }
       } must beAFailedTry
+    }
+  }
+
+  "CacheManagerProvider" should {
+
+    "use the implementations default config in the absence of any definition" in new WithApplication(
+      _.configure(configuration)
+    ) {
+      app.injector.instanceOf[CacheManager].getCacheNames.toSeq must beEmpty
+    }
+
+    "use the user requested configuration" in new WithApplication(
+      _.configure(configuration).configure("play.cache.jcacheConfigResource" -> "custom-config.xml")
+    ) {
+      app.injector.instanceOf[CacheManager].getCacheNames.toSeq must contain("a", "b", "c")
     }
   }
 

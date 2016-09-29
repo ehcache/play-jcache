@@ -97,7 +97,7 @@ class JCacheModule extends Module {
 class CacheManagerProvider @Inject()(env: Environment, config: Configuration, lifecycle: ApplicationLifecycle) extends Provider[CacheManager] {
   lazy val get: CacheManager = {
     val provider = Caching.getCachingProvider
-    val resourceName = config.getString("play.cache.jcacheConfig")
+    val resourceName = config.getString("play.cache.jcacheConfigResource")
     val configUri = resourceName.map(env.resource(_).get).map(_.toURI).getOrElse(provider.getDefaultURI)
     val manager = provider.getCacheManager(configUri, env.classLoader)
     lifecycle.addStopHook(() => Future.successful(manager.close()))
