@@ -19,6 +19,10 @@ package org.ehcache.integrations.play
 import javax.cache.configuration.{Configuration => JCacheConfiguration}
 import javax.inject.{Inject, Provider, Singleton}
 
+import org.ehcache.config.builders.CacheConfigurationBuilder
+import org.ehcache.config.builders.CacheConfigurationBuilder.newCacheConfigurationBuilder
+import org.ehcache.config.builders.ResourcePoolsBuilder.heap
+import org.ehcache.jsr107.Eh107Configuration.fromEhcacheCacheConfiguration
 import org.ehcache.xml.XmlConfiguration
 import play.api.inject.Module
 import play.api.{Configuration, Environment}
@@ -46,7 +50,23 @@ class EhcacheJCacheWrapperProvider @Inject()(env: Environment, config: Configura
   }
 }
 
+/**
+  *
+  */
 class EhcacheValueWrapper extends ValueWrapper {
+  def wrapValue(value: Any, expiration: Duration): Any = {
+    WrappedValueWithExpiry(value, expiration)
+  }
+
+  def unwrapValue(value: Any): Any = {
+    value match {
+      case v: WrappedValueWithExpiry => v.value
+      case _ => value
+    }
+  }
+}
+
+class NoOpValueWrapper extends ValueWrapper {
   def wrapValue(value: Any, expiration: Duration): Any = {
     value
   }
@@ -63,11 +83,34 @@ class EhcacheValueWrapper extends ValueWrapper {
   */
 class EhcacheJCacheWrapper(xmlConfig: Option[XmlConfiguration]) extends JCacheWrapper {
 
+  var enhanced = Set.empty[String]
+
   def valueWrapper(name: String) = {
-    new EhcacheValueWrapper
+    enhanced contains name match {
+      case true => new EhcacheValueWrapper
+      case false => new NoOpValueWrapper
+    }
   }
 
   def enhanceConfiguration(name: String, baseConfig: JCacheConfiguration[String, Any]): JCacheConfiguration[String, Any] = {
-    baseConfig
+    xmlConfig match {
+      case Some(config) =>
+        val template: CacheConfigurationBuilder[String, Any] = config
+                .newCacheConfigurationBuilderFromTemplate(name, classOf[String], classOf[Any])
+        template match {
+          case null => generateMinimalConfiguration(name)
+          case t if t.hasConfiguredExpiry => fromEhcacheCacheConfiguration(t)
+          case t =>
+            enhanced = enhanced + name
+            fromEhcacheCacheConfiguration(t.withExpiry(new WrappedValueWithExpiryExpiration))
+        }
+      case None => generateMinimalConfiguration(name)
+    }
+  }
+
+  def generateMinimalConfiguration(name: String): JCacheConfiguration[String, Any] = {
+    enhanced = enhanced + name
+    fromEhcacheCacheConfiguration(newCacheConfigurationBuilder(classOf[String], classOf[Any], heap(Int.MaxValue))
+            .withExpiry(new WrappedValueWithExpiryExpiration))
   }
 }
