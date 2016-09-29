@@ -19,19 +19,19 @@
         xmlns:ehcache='http://www.ehcache.org/v3'>
     <ehcache:cache alias="a">
         <ehcache:key-type>java.lang.String</ehcache:key-type>
-        <ehcache:value-type>java.lang.String</ehcache:value-type>
+        <ehcache:value-type>java.lang.Object</ehcache:value-type>
         <ehcache:heap>5</ehcache:heap>
     </ehcache:cache>
 
     <ehcache:cache alias="b">
         <ehcache:key-type>java.lang.String</ehcache:key-type>
-        <ehcache:value-type>java.lang.String</ehcache:value-type>
+        <ehcache:value-type>java.lang.Object</ehcache:value-type>
         <ehcache:heap>5</ehcache:heap>
     </ehcache:cache>
 
     <ehcache:cache alias="c">
         <ehcache:key-type>java.lang.String</ehcache:key-type>
-        <ehcache:value-type>java.lang.String</ehcache:value-type>
+        <ehcache:value-type>java.lang.Object</ehcache:value-type>
         <ehcache:heap>5</ehcache:heap>
     </ehcache:cache>
 </ehcache:config>
