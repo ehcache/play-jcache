@@ -251,4 +251,35 @@ class JCacheModuleSpec extends PlaySpecification {
       defaultCache.get("unit") must beSome(())
     }
   }
+
+  "JCacheApi.set" should {
+    "install a cache mapping" in new WithApplication(
+      _.configure(configuration)
+    ) {
+      val defaultCache = app.injector.instanceOf[CacheApi]
+
+      defaultCache.set("foo", "bar")
+      defaultCache.get("foo") must beSome("bar")
+    }
+  }
+
+  "JCacheApi.remove" should {
+    "succeed silently on an absent cache mapping" in new WithApplication(
+      _.configure(configuration)
+    ) {
+      val defaultCache = app.injector.instanceOf[CacheApi]
+
+      Try { defaultCache.remove("foo") } must beASuccessfulTry
+    }
+
+    "succeed in removing a present cache mapping" in new WithApplication(
+      _.configure(configuration)
+    ) {
+      val defaultCache = app.injector.instanceOf[CacheApi]
+      defaultCache.set("foo", "bar")
+
+      defaultCache.remove("foo")
+      defaultCache.get("foo") must beNone
+    }
+  }
 }
