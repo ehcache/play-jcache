@@ -41,7 +41,9 @@ trait JCacheComponents {
 
   def applicationLifecycle: ApplicationLifecycle
 
-  lazy val jCacheManager: CacheManager = new CacheManagerProvider(environment, configuration, applicationLifecycle).get
+  def jCacheWrapper: JCacheWrapper
+
+  lazy val jCacheManager: CacheManager = new CacheManagerProvider(environment, configuration, applicationLifecycle, jCacheWrapper).get
 
   /**
     * Use this to create with the given name.
@@ -51,6 +53,13 @@ trait JCacheComponents {
   }
 
   lazy val defaultCacheApi: CacheApi = cacheApi(configuration.getString("play.cache.defaultCache").getOrElse("play"))
+}
+
+/**
+  * This trait defines an extension point for JCache integration.
+  */
+trait JCacheWrapper {
+  def wrapValue(value: Any, expiration: Duration): Any
 }
 
 /**
@@ -94,7 +103,7 @@ class JCacheModule extends Module {
 }
 
 @Singleton
-class CacheManagerProvider @Inject()(env: Environment, config: Configuration, lifecycle: ApplicationLifecycle) extends Provider[CacheManager] {
+class CacheManagerProvider @Inject()(env: Environment, config: Configuration, lifecycle: ApplicationLifecycle, jCacheWrapper: JCacheWrapper) extends Provider[CacheManager] {
   lazy val get: CacheManager = {
     val provider = Caching.getCachingProvider
     val resourceName = config.getString("play.cache.jcacheConfigResource")
