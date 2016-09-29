@@ -16,17 +16,14 @@
 
 package org.ehcache.integrations.play
 
-import javax.inject.{Provider, Singleton}
+import javax.cache.configuration.{Configuration => JCacheConfiguration}
+import javax.inject.{Inject, Provider, Singleton}
 
+import org.ehcache.xml.XmlConfiguration
 import play.api.inject.Module
 import play.api.{Configuration, Environment}
 
 import scala.concurrent.duration.Duration
-
-
-trait EhcacheJCacheWrapperComponents {
-  lazy val ehcacheJCacheWrapper: JCacheWrapper = new EhcacheJCacheWrapperProvider().get
-}
 
 /**
   * EhcacheWrapperModule
@@ -41,12 +38,36 @@ class EhcacheJCacheWrapperModule extends Module {
 }
 
 @Singleton
-class EhcacheJCacheWrapperProvider extends Provider[JCacheWrapper] {
+class EhcacheJCacheWrapperProvider @Inject()(env: Environment, config: Configuration) extends Provider[JCacheWrapper] {
   lazy val get: JCacheWrapper = {
-    new EhcacheJCacheWrapper()
+    val resourceName = config.getString("play.cache.jcacheConfigResource")
+    val xmlConfig = resourceName.map(r => new XmlConfiguration(env.resource(r).get, env.classLoader))
+    new EhcacheJCacheWrapper(xmlConfig)
   }
 }
 
-class EhcacheJCacheWrapper extends JCacheWrapper {
-  override def wrapValue(value: Any, expiration: Duration): Any = ???
+class EhcacheValueWrapper extends ValueWrapper {
+  def wrapValue(value: Any, expiration: Duration): Any = {
+    value
+  }
+
+  def unwrapValue(value: Any): Any = {
+    value
+  }
+}
+
+/**
+  * This wrapper implementation allows to leverage Ehcache 3 features to enable back the per mapping TTL.
+  *
+  * @param xmlConfig the source XML configuration used by the JCache module.
+  */
+class EhcacheJCacheWrapper(xmlConfig: Option[XmlConfiguration]) extends JCacheWrapper {
+
+  def valueWrapper(name: String) = {
+    new EhcacheValueWrapper
+  }
+
+  def enhanceConfiguration(name: String, baseConfig: JCacheConfiguration[String, Any]): JCacheConfiguration[String, Any] = {
+    baseConfig
+  }
 }

@@ -59,6 +59,8 @@ class JCacheModuleSpec extends PlaySpecification {
 
       override def configuration: Configuration = config
 
+      override def jCacheWrapper: JCacheWrapper = new EhcacheJCacheWrapper(None)
+
       override def after: Any = Await.result(applicationLifecycle.stop, Duration.Inf)
     }
 
