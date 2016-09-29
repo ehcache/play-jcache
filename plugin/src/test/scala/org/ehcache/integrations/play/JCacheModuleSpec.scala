@@ -18,12 +18,19 @@ package org.ehcache.integrations.play
 
 import javax.cache.CacheManager
 
+import org.specs2.mutable.After
+import org.specs2.specification.Scope
+
+import play.api.{Configuration, Environment}
 import play.api.cache.{CacheApi, Cached}
+import play.api.inject.DefaultApplicationLifecycle
 import play.api.test._
 import play.cache.NamedCacheImpl
 import play.inject.Bindings.bind
 
 import scala.collection.JavaConversions._
+import scala.concurrent.Await
+import scala.concurrent.duration.Duration
 import scala.util.Try
 
 class JCacheModuleSpec extends PlaySpecification {
@@ -39,6 +46,44 @@ class JCacheModuleSpec extends PlaySpecification {
     "provide JCacheModule" in {
       val modules = play.api.inject.Modules.locate(play.api.Environment.simple(), configuration)
       (modules.find { module => module.isInstanceOf[JCacheModule] }.isDefined)
+    }
+  }
+
+  "JCacheComponents" should {
+    class CompileTimeDiApplication(config : Configuration = Configuration.empty) extends Scope with After with JCacheComponents {
+      override def applicationLifecycle: DefaultApplicationLifecycle = new DefaultApplicationLifecycle
+
+      override def environment: Environment = play.api.Environment.simple()
+
+      override def configuration: Configuration = config
+
+      override def after: Any = Await.result(applicationLifecycle.stop, Duration.Inf)
+    }
+
+    "inject a javax.cache.CacheManager" in new CompileTimeDiApplication() {
+      jCacheManager must not beNull
+    }
+
+    "inject the default cache" in new CompileTimeDiApplication() {
+      defaultCacheApi must not beNull;
+      jCacheManager.getCacheNames.toSeq must contain("play")
+    }
+
+    "inject the default cache with a non-standard name" in new CompileTimeDiApplication(
+      Configuration.from(Map("play.cache.defaultCache" -> "foobar"))
+    ) {
+      defaultCacheApi must not beNull;
+      jCacheManager.getCacheNames.toSeq must contain("foobar")
+    }
+
+    "retrieve a pre-existing cache" in new CompileTimeDiApplication(
+      Configuration.from(Map("play.cache.jcacheConfigResource" -> "custom-config.xml"))
+    ) {
+      cacheApi("a", false) must not beNull
+    }
+
+    "retrieve a on-demand created cache" in new CompileTimeDiApplication() {
+      cacheApi("foobar", true) must not beNull
     }
   }
 

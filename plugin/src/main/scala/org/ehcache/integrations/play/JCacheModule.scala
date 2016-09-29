@@ -50,7 +50,7 @@ trait JCacheComponents {
     new JCacheApi(NamedJCacheProvider.getNamedCache(name, jCacheManager, create).get)
   }
 
-  lazy val defaultCacheApi: CacheApi = cacheApi("play")
+  lazy val defaultCacheApi: CacheApi = cacheApi(configuration.getString("play.cache.defaultCache").getOrElse("play"))
 }
 
 /**
