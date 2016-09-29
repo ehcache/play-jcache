@@ -20,7 +20,7 @@ lazy val baseSettings = Seq(
   parallelExecution in Test := false
 )
 
-lazy val root = (project in file("."))
+lazy val play_jcache = (project in file("."))
   .settings(baseSettings: _*)
   .settings(
     publishLocal := {},

@@ -39,7 +39,9 @@ class JCacheModuleSpec extends PlaySpecification {
 
   val configuration = play.api.Configuration.from(Map(
     "play.modules.disabled" -> Seq("play.api.cache.EhCacheModule"),
-    "play.modules.enabled" -> Seq("org.ehcache.integrations.play.JCacheModule", "play.api.inject.BuiltinModule")
+    "play.modules.enabled" -> Seq("play.api.inject.BuiltinModule",
+                                  "org.ehcache.integrations.play.JCacheModule",
+                                  "org.ehcache.integrations.play.EhcacheJCacheWrapperModule")
   ))
 
   "play-jcache" should {
@@ -56,6 +58,8 @@ class JCacheModuleSpec extends PlaySpecification {
       override def environment: Environment = play.api.Environment.simple()
 
       override def configuration: Configuration = config
+
+      override def jCacheWrapper: JCacheWrapper = new EhcacheJCacheWrapper(None)
 
       override def after: Any = Await.result(applicationLifecycle.stop, Duration.Inf)
     }

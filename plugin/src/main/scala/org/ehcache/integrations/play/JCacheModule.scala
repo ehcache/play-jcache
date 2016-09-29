@@ -17,7 +17,7 @@
 package org.ehcache.integrations.play
 
 import javax.cache.{Cache, CacheManager, Caching}
-import javax.cache.configuration.MutableConfiguration
+import javax.cache.configuration.{MutableConfiguration, Configuration => JCacheConfiguration}
 import javax.cache.processor.{EntryProcessor, MutableEntry}
 import javax.inject.{Inject, Provider, Singleton}
 
@@ -41,16 +41,37 @@ trait JCacheComponents {
 
   def applicationLifecycle: ApplicationLifecycle
 
+  def jCacheWrapper: JCacheWrapper
+
   lazy val jCacheManager: CacheManager = new CacheManagerProvider(environment, configuration, applicationLifecycle).get
 
   /**
     * Use this to create with the given name.
     */
   def cacheApi(name: String, create: Boolean = true): CacheApi = {
-    new JCacheApi(NamedJCacheProvider.getNamedCache(name, jCacheManager, create).get)
+    new JCacheApi(NamedJCacheProvider.getNamedCache(name, jCacheManager, create, jCacheWrapper).get, jCacheWrapper.valueWrapper(name))
   }
 
   lazy val defaultCacheApi: CacheApi = cacheApi(configuration.getString("play.cache.defaultCache").getOrElse("play"))
+}
+
+/**
+  *
+  */
+trait ValueWrapper {
+  def wrapValue(value: Any, expiration: Duration): Any
+
+  def unwrapValue(value: Any): Any
+}
+
+/**
+  * This trait defines an extension point for JCache integration.
+  */
+trait JCacheWrapper {
+
+  def valueWrapper(name: String): ValueWrapper
+
+  def enhanceConfiguration(name: String, baseConfig: JCacheConfiguration[String, Any]): JCacheConfiguration[String, Any]
 }
 
 /**
@@ -107,20 +128,26 @@ class CacheManagerProvider @Inject()(env: Environment, config: Configuration, li
 
 private[play] class NamedJCacheProvider(name: String, create: Boolean) extends Provider[Cache[String, Any]] {
   @Inject private var manager: CacheManager = _
-  lazy val get: Cache[String, Any] = NamedJCacheProvider.getNamedCache(name, manager, create).get
+  @Inject private var jCacheWrapper: JCacheWrapper = _
+  lazy val get: Cache[String, Any] = NamedJCacheProvider.getNamedCache(name, manager, create, jCacheWrapper).get
 }
 
 private[play] object NamedJCacheProvider {
-  def getNamedCache(name: String, manager: CacheManager, create: Boolean): Option[Cache[String, Any]] = {
+  def getNamedCache(name: String, manager: CacheManager, create: Boolean, jCacheWrapper: JCacheWrapper): Option[Cache[String, Any]] = {
     Option(manager.getCache(name, classOf[String], classOf[Any]))
-      .orElse(if (create) Option(manager.createCache(name, new MutableConfiguration[String, Any]().setTypes(classOf[String], classOf[Any]))) else Option.empty)
+      .orElse(if (create) Option {
+        val config = jCacheWrapper.enhanceConfiguration(name, new MutableConfiguration[String, Any]().setTypes(classOf[String], classOf[Any]))
+        manager.createCache(name, config)
+      } else Option.empty)
   }
 }
 
 private[play] class NamedCacheApiProvider(key: BindingKey[Cache[String, Any]]) extends Provider[CacheApi] {
   @Inject private var injector: Injector = _
+  @Inject private var jCacheWrapper: JCacheWrapper = _
   lazy val get: CacheApi = {
-    new JCacheApi(injector.instanceOf(key))
+    val cache: Cache[String, Any] = injector.instanceOf(key)
+    new JCacheApi(cache, jCacheWrapper.valueWrapper(cache.getName))
   }
 }
 
@@ -139,10 +166,10 @@ private[play] class NamedCachedProvider(key: BindingKey[CacheApi]) extends Provi
 }
 
 @Singleton
-class JCacheApi @Inject()(cache: Cache[String, Any]) extends CacheApi {
+class JCacheApi @Inject()(cache: Cache[String, Any], valueWrapper: ValueWrapper) extends CacheApi {
 
   def set(key: String, value: Any, expiration: Duration) = {
-    cache.put(key, value)
+    cache.put(key, valueWrapper.wrapValue(value, expiration))
   }
 
   def get[T: ClassTag](key: String): Option[T] = {
@@ -154,11 +181,11 @@ class JCacheApi @Inject()(cache: Cache[String, Any]) extends CacheApi {
       def process(entry: MutableEntry[String, Any], arguments: AnyRef*): A = {
         if (entry.exists()) {
           filter(entry.getValue()).getOrElse({
-            entry.setValue(orElse)
+            entry.setValue(valueWrapper.wrapValue(orElse, expiration))
             orElse
           })
         } else {
-          entry.setValue(orElse)
+          entry.setValue(valueWrapper.wrapValue(orElse, expiration))
           orElse
         }
       }
@@ -170,7 +197,7 @@ class JCacheApi @Inject()(cache: Cache[String, Any]) extends CacheApi {
   }
 
   private def filter[T](value: Any)(implicit ct: ClassTag[T]): Option[T] = {
-    Option(value).filter { v =>
+    Option(value).map(valueWrapper.unwrapValue).filter { v =>
       Primitives.wrap(ct.runtimeClass).isInstance(v) ||
         ct == ClassTag.Nothing || (ct == ClassTag.Unit && v == ((): Unit))
     }.asInstanceOf[Option[T]]
