@@ -55,14 +55,14 @@ class EhcacheJCacheWrapperProvider @Inject()(env: Environment, config: Configura
   *
   */
 class EhcacheValueWrapper extends ValueWrapper {
-  def wrapValue(value: Any, expiration: Duration): Any = {
+  def wrapValue(value: Any, expiration: Duration): AnyRef = {
     expiration match {
-      case Duration.Inf => value
-      case _ => WrappedValueWithExpiry(value, expiration)
+      case Duration.Inf => value.asInstanceOf[AnyRef]
+      case _ => WrappedValueWithExpiry(value.asInstanceOf[AnyRef], expiration)
     }
   }
 
-  def unwrapValue(value: Any): Any = {
+  def unwrapValue(value: AnyRef): Any = {
     value match {
       case v: WrappedValueWithExpiry => v.value
       case _ => value
@@ -71,11 +71,11 @@ class EhcacheValueWrapper extends ValueWrapper {
 }
 
 class NoOpValueWrapper extends ValueWrapper {
-  def wrapValue(value: Any, expiration: Duration): Any = {
-    value
+  def wrapValue(value: Any, expiration: Duration): AnyRef = {
+    value.asInstanceOf[AnyRef]
   }
 
-  def unwrapValue(value: Any): Any = {
+  def unwrapValue(value: AnyRef): Any = {
     value
   }
 }
@@ -96,19 +96,19 @@ class EhcacheJCacheWrapper(xmlConfig: Option[XmlConfiguration]) extends JCacheWr
     }
   }
 
-  def enhanceConfiguration(name: String, baseConfig: JCacheConfiguration[String, Any]): JCacheConfiguration[String, Any] = {
+  def enhanceConfiguration(name: String, baseConfig: JCacheConfiguration[String, AnyRef]): JCacheConfiguration[String, AnyRef] = {
     enhancedCaches add name
     xmlConfig.map(enhanceTemplateConfig(name, _)).getOrElse(generateMinimalConfiguration(name))
   }
 
-  private def enhanceTemplateConfig(name:String, config: XmlConfiguration): JCacheConfiguration[String, Any] = {
-    Option(config.newCacheConfigurationBuilderFromTemplate(name, classOf[String], classOf[Any]))
+  private def enhanceTemplateConfig(name:String, config: XmlConfiguration): JCacheConfiguration[String, AnyRef] = {
+    Option(config.newCacheConfigurationBuilderFromTemplate(name, classOf[String], classOf[AnyRef]))
             .map(t => fromEhcacheCacheConfiguration(t withExpiry new WrappedValueWithExpiryExpiration(t.build.getExpiry)))
             .getOrElse(generateMinimalConfiguration(name))
   }
 
-  private def generateMinimalConfiguration(name: String): JCacheConfiguration[String, Any] = {
-    fromEhcacheCacheConfiguration(newCacheConfigurationBuilder(classOf[String], classOf[Any], heap(Int.MaxValue))
+  private def generateMinimalConfiguration(name: String): JCacheConfiguration[String, AnyRef] = {
+    fromEhcacheCacheConfiguration(newCacheConfigurationBuilder(classOf[String], classOf[AnyRef], heap(Int.MaxValue))
             .withExpiry(new WrappedValueWithExpiryExpiration))
   }
 }

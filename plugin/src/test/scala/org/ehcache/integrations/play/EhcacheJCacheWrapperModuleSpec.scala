@@ -38,7 +38,7 @@ class EhcacheJCacheWrapperModuleSpec extends PlaySpecification {
     "enhance configuration always when no xml config specified" in {
       val wrapper = new EhcacheJCacheWrapper(None)
       val name = "name"
-      val baseConfig = new MutableConfiguration[String, Any]()
+      val baseConfig = new MutableConfiguration[String, AnyRef]()
 
       wrapper.enhanceConfiguration(name, baseConfig) must not beTheSameAs baseConfig
       wrapper.valueWrapper(name) must beAnInstanceOf[EhcacheValueWrapper]
@@ -47,7 +47,7 @@ class EhcacheJCacheWrapperModuleSpec extends PlaySpecification {
     "enhance configuration when matching template has no expiry configured" in {
       val wrapper = new EhcacheJCacheWrapper(Some(xmlConfig))
       val name = "template-no-expiry"
-      wrapper.enhanceConfiguration(name, new MutableConfiguration[String, Any]())
+      wrapper.enhanceConfiguration(name, new MutableConfiguration[String, AnyRef]())
 
       wrapper.valueWrapper(name) must beAnInstanceOf[EhcacheValueWrapper]
     }
@@ -55,7 +55,7 @@ class EhcacheJCacheWrapperModuleSpec extends PlaySpecification {
     "enhance configuration when matching template has expiry configured" in {
       val wrapper = new EhcacheJCacheWrapper(Some(xmlConfig))
       val name = "template-expiry"
-      wrapper.enhanceConfiguration(name, new MutableConfiguration[String, Any]())
+      wrapper.enhanceConfiguration(name, new MutableConfiguration[String, AnyRef]())
 
       wrapper.valueWrapper(name) must beAnInstanceOf[EhcacheValueWrapper]
     }
@@ -63,7 +63,7 @@ class EhcacheJCacheWrapperModuleSpec extends PlaySpecification {
     "enhance configuration when no matching template found" in {
       val wrapper = new EhcacheJCacheWrapper(Some(xmlConfig))
       val name = "template-not-existing"
-      wrapper.enhanceConfiguration(name, new MutableConfiguration[String, Any]())
+      wrapper.enhanceConfiguration(name, new MutableConfiguration[String, AnyRef]())
 
       wrapper.valueWrapper(name) must beAnInstanceOf[EhcacheValueWrapper]
     }
