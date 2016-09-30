@@ -173,14 +173,14 @@ class JCacheApi @Inject()(cache: Cache[String, Any], valueWrapper: ValueWrapper)
   }
 
   def get[T: ClassTag](key: String): Option[T] = {
-    return filter(cache.get(key))
+    filter(cache.get(key))
   }
 
   def getOrElse[A: ClassTag](key: String, expiration: Duration)(orElse: => A): A = {
     cache.invoke(key, new EntryProcessor[String, Any, A] {
       def process(entry: MutableEntry[String, Any], arguments: AnyRef*): A = {
         if (entry.exists()) {
-          filter(entry.getValue()).getOrElse({
+          filter(entry.getValue).getOrElse({
             entry.setValue(valueWrapper.wrapValue(orElse, expiration))
             orElse
           })

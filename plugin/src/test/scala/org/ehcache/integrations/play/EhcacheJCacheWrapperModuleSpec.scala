@@ -32,7 +32,7 @@ import scala.util.Try
   */
 class EhcacheJCacheWrapperModuleSpec extends PlaySpecification {
 
-  val xmlConfig = new XmlConfiguration(getClass().getResource("/template-test-config.xml"))
+  val xmlConfig = new XmlConfiguration(getClass.getResource("/template-test-config.xml"))
 
   "EhcacheJCacheWrapper" should {
     "enhance configuration always when no xml config specified" in {
@@ -40,7 +40,7 @@ class EhcacheJCacheWrapperModuleSpec extends PlaySpecification {
       val name = "name"
       val baseConfig: MutableConfiguration[String, Any] = new MutableConfiguration[String, Any]()
 
-      wrapper.enhanceConfiguration(name, baseConfig) must not beTheSameAs(baseConfig)
+      wrapper.enhanceConfiguration(name, baseConfig) must not beTheSameAs baseConfig
       wrapper.valueWrapper(name) must beAnInstanceOf[EhcacheValueWrapper]
     }
 
