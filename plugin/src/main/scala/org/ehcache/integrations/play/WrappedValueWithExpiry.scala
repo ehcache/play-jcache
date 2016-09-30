@@ -16,8 +16,6 @@
 
 package org.ehcache.integrations.play
 
-import java.util.concurrent.TimeUnit
-
 import org.ehcache.ValueSupplier
 import org.ehcache.expiry.{Expiry, Duration => EhDuration}
 
@@ -26,7 +24,9 @@ import scala.concurrent.duration.Duration
 /**
   * WrappedValueWithExpiry
   */
-case class WrappedValueWithExpiry(value: Any, expiration: Duration)
+case class WrappedValueWithExpiry(value: Any, expiration: Duration) {
+  require(expiration.isFinite())
+}
 
 /**
   * WrappedValueWithExpiryExpiration
@@ -35,14 +35,10 @@ class WrappedValueWithExpiryExpiration extends Expiry[String, Any] {
   def getExpiryForAccess(key: String, value: ValueSupplier[_]): EhDuration = null
 
   def getExpiryForCreation(key: String, value: Any): EhDuration = {
-   value match {
-     case (wrapped: WrappedValueWithExpiry) =>
-       wrapped.expiration match {
-         case Duration.Inf => EhDuration.INFINITE
-         case _ => EhDuration.of(wrapped.expiration.toMillis, TimeUnit.MILLISECONDS)
-       }
-     case _ => EhDuration.INFINITE
-   }
+    value match {
+      case WrappedValueWithExpiry(_, duration) => EhDuration.of(duration.length, duration.unit)
+      case _ => EhDuration.INFINITE
+    }
   }
 
   def getExpiryForUpdate(key: String, oldValue: ValueSupplier[_], newValue: Any): EhDuration = {
@@ -63,11 +59,7 @@ class WrappedValueWithExpiryAndDelegateExpiration(delegate: Expiry[_ >: String, 
 
   private def getWrappedExpiryOrDelegate(value: Any, delegation: => EhDuration): EhDuration = {
     value match {
-      case (wrapped: WrappedValueWithExpiry) =>
-        wrapped.expiration match {
-          case Duration.Inf => EhDuration.INFINITE
-          case _ => EhDuration.of(wrapped.expiration.toMillis, TimeUnit.MILLISECONDS)
-        }
+      case WrappedValueWithExpiry(_, duration) => EhDuration.of(duration.length, duration.unit)
       case _ => delegation
     }
   }

@@ -90,7 +90,7 @@ class EhcacheJCacheWrapperModuleSpec extends PlaySpecification {
       wrapper.wrapValue(testValue, Duration.create(100, TimeUnit.SECONDS)) must be equalTo testValue
     }
     "not unwrap value when it is WrappedValueWithExpiry" in {
-      val value = WrappedValueWithExpiry(testValue, Duration.Inf)
+      val value = WrappedValueWithExpiry(testValue, Duration.create(10, TimeUnit.SECONDS))
       wrapper.unwrapValue(value) must be equalTo value
     }
   }
