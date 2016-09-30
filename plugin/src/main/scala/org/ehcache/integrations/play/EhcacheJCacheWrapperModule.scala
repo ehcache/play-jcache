@@ -105,7 +105,7 @@ class EhcacheJCacheWrapper(xmlConfig: Option[XmlConfiguration]) extends JCacheWr
       case null => generateMinimalConfiguration(name)
       case t if t.hasConfiguredExpiry =>
         val innerExpiry = t.build.getExpiry
-        fromEhcacheCacheConfiguration(t withExpiry new WrappedValueWithExpiryAndDelegateExpiration(innerExpiry))
+        fromEhcacheCacheConfiguration(t withExpiry new WrappedValueWithExpiryExpiration(innerExpiry))
       case t =>
         enhancedCaches add name
         fromEhcacheCacheConfiguration(t withExpiry new WrappedValueWithExpiryExpiration)

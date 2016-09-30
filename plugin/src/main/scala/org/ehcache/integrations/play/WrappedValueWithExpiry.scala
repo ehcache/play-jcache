@@ -17,36 +17,19 @@
 package org.ehcache.integrations.play
 
 import org.ehcache.ValueSupplier
-import org.ehcache.expiry.{Expiry, Duration => EhDuration}
+import org.ehcache.expiry.{Expirations, Expiry, Duration => EhDuration}
 
 import scala.concurrent.duration.Duration
 
-/**
-  * WrappedValueWithExpiry
-  */
 case class WrappedValueWithExpiry(value: Any, expiration: Duration) {
   require(expiration.isFinite())
 }
 
-/**
-  * WrappedValueWithExpiryExpiration
-  */
-class WrappedValueWithExpiryExpiration extends Expiry[String, Any] {
-  def getExpiryForAccess(key: String, value: ValueSupplier[_]): EhDuration = null
-
-  def getExpiryForCreation(key: String, value: Any): EhDuration = {
-    value match {
-      case WrappedValueWithExpiry(_, duration) => EhDuration.of(duration.length, duration.unit)
-      case _ => EhDuration.INFINITE
-    }
+class WrappedValueWithExpiryExpiration(delegate: Expiry[_ >: String, _ >: Any]) extends Expiry[String, Any] {
+  def this() = {
+    this(Expirations.noExpiration().asInstanceOf[Expiry[String, Any]])
   }
 
-  def getExpiryForUpdate(key: String, oldValue: ValueSupplier[_], newValue: Any): EhDuration = {
-    getExpiryForCreation(key, newValue)
-  }
-}
-
-class WrappedValueWithExpiryAndDelegateExpiration(delegate: Expiry[_ >: String, _ >: Any]) extends Expiry[String, Any] {
   def getExpiryForAccess(key: String, value: ValueSupplier[_]): EhDuration = delegate.getExpiryForAccess(key, value)
 
   def getExpiryForCreation(key: String, value: Any): EhDuration = {

@@ -39,31 +39,8 @@ class WrappedValueWithExpirySpec extends Specification with Mockito{
   }
 
   "WrappedValueWithExpiryExpiration" should {
-    val expiry = new WrappedValueWithExpiryExpiration
-    "always return null in getExpiryForAccess" in {
-      expiry.getExpiryForAccess("key", mock[ValueSupplier[_]]) must beNull
-    }
-    "default to Duration.INFINITE when value is not wrapped in getExpiryForCreation" in {
-      expiry.getExpiryForCreation("key", "value") must be equalTo EhDuration.INFINITE
-    }
-    "return configured expiration duration when value is wrapped in getExpiryForCreation" in {
-      val duration = Duration.create(10, TimeUnit.SECONDS)
-      val newValue = WrappedValueWithExpiry("value", duration)
-      expiry.getExpiryForCreation("key", newValue) must be equalTo EhDuration.of(10, TimeUnit.SECONDS)
-    }
-    "default to Duration.INFINITE when value is not wrapped in getExpiryForUpdate" in {
-      expiry.getExpiryForUpdate("key", mock[ValueSupplier[_]], "value") must be equalTo EhDuration.INFINITE
-    }
-    "return configured expiration duration when value is wrapped in getExpiryForUpdate" in {
-      val duration = Duration.create(10, TimeUnit.SECONDS)
-      val newValue = WrappedValueWithExpiry("value", duration)
-      expiry.getExpiryForUpdate("key", mock[ValueSupplier[_]], newValue) must be equalTo EhDuration.of(10, TimeUnit.SECONDS)
-    }
-  }
-
-  "WrappedValueWithExpiryAndDeleateExpiration" should {
     val mockedExpiry = mock[Expiry[String, Any]]
-    val expiry = new WrappedValueWithExpiryAndDelegateExpiration(mockedExpiry)
+    val expiry = new WrappedValueWithExpiryExpiration(mockedExpiry)
     "delegates in getExpiryForAccess" in {
       expiry.getExpiryForAccess("key", mock[ValueSupplier[_]])
       there was one(mockedExpiry).getExpiryForAccess(Matchers.eq("key"), any[ValueSupplier[_]])
