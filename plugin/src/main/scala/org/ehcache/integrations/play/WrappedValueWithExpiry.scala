@@ -19,11 +19,9 @@ package org.ehcache.integrations.play
 import org.ehcache.ValueSupplier
 import org.ehcache.expiry.{Expirations, Expiry, Duration => EhDuration}
 
-import scala.concurrent.duration.Duration
+import scala.concurrent.duration.FiniteDuration
 
-case class WrappedValueWithExpiry(value: AnyRef, expiration: Duration) {
-  require(expiration.isFinite())
-}
+case class WrappedValueWithExpiry(value: AnyRef, expiration: FiniteDuration) {}
 
 class WrappedValueWithExpiryExpiration(delegate: Expiry[_ >: String, _ >: AnyRef]) extends Expiry[String, AnyRef] {
   def this() = {

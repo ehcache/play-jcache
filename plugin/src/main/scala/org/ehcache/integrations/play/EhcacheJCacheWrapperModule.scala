@@ -28,7 +28,7 @@ import org.ehcache.xml.XmlConfiguration
 import play.api.inject.Module
 import play.api.{Configuration, Environment}
 
-import scala.concurrent.duration.Duration
+import scala.concurrent.duration.{Duration, FiniteDuration}
 
 /**
   * EhcacheWrapperModule
@@ -57,8 +57,8 @@ class EhcacheJCacheWrapperProvider @Inject()(env: Environment, config: Configura
 class EhcacheValueWrapper extends ValueWrapper {
   def wrapValue(value: Any, expiration: Duration): AnyRef = {
     expiration match {
-      case Duration.Inf => value.asInstanceOf[AnyRef]
-      case _ => WrappedValueWithExpiry(value.asInstanceOf[AnyRef], expiration)
+      case finite: FiniteDuration => WrappedValueWithExpiry(value.asInstanceOf[AnyRef], finite)
+      case infinite => value.asInstanceOf[AnyRef]
     }
   }
 

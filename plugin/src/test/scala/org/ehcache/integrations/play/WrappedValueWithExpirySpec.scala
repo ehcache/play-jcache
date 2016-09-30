@@ -32,12 +32,6 @@ import scala.util.Try
   */
 class WrappedValueWithExpirySpec extends Specification with Mockito{
 
-  "WrappedValueWithExpiry" should {
-    "fail to build if Duration.Inf is used" in {
-      Try { WrappedValueWithExpiry("value", Duration.Inf) } must beFailedTry
-    }
-  }
-
   "WrappedValueWithExpiryExpiration" should {
     val mockedExpiry = mock[Expiry[String, AnyRef]]
     val expiry = new WrappedValueWithExpiryExpiration(mockedExpiry)
