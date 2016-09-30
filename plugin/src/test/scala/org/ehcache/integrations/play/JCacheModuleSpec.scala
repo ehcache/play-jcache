@@ -16,11 +16,11 @@
 
 package org.ehcache.integrations.play
 
+import java.util.concurrent.TimeUnit
 import javax.cache.CacheManager
 
 import org.specs2.mutable.After
 import org.specs2.specification.Scope
-
 import play.api.{Configuration, Environment}
 import play.api.cache.{CacheApi, Cached}
 import play.api.inject.DefaultApplicationLifecycle
@@ -30,7 +30,7 @@ import play.inject.Bindings.bind
 
 import scala.collection.JavaConversions._
 import scala.concurrent.Await
-import scala.concurrent.duration.Duration
+import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.util.Try
 
 class JCacheModuleSpec extends PlaySpecification {
@@ -326,7 +326,17 @@ class JCacheModuleSpec extends PlaySpecification {
       defaultCache.set("foo", "bar")
       defaultCache.get("foo") must beSome("bar")
     }
+
+    "install a cache mapping with expiration" in new WithApplication(
+      _.configure(configuration)
+    ) {
+      val defaultCache = app.injector.instanceOf[CacheApi]
+
+      defaultCache.set("band", 41, FiniteDuration(10, TimeUnit.MINUTES))
+      defaultCache.get("band") must beSome(41)
+    }
   }
+
 
   "JCacheApi.remove" should {
     "succeed silently on an absent cache mapping" in new WithApplication(

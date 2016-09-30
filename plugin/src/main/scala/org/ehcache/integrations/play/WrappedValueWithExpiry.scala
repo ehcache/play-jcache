@@ -21,26 +21,26 @@ import org.ehcache.expiry.{Expirations, Expiry, Duration => EhDuration}
 
 import scala.concurrent.duration.Duration
 
-case class WrappedValueWithExpiry(value: Any, expiration: Duration) {
+case class WrappedValueWithExpiry(value: AnyRef, expiration: Duration) {
   require(expiration.isFinite())
 }
 
-class WrappedValueWithExpiryExpiration(delegate: Expiry[_ >: String, _ >: Any]) extends Expiry[String, Any] {
+class WrappedValueWithExpiryExpiration(delegate: Expiry[_ >: String, _ >: AnyRef]) extends Expiry[String, AnyRef] {
   def this() = {
-    this(Expirations.noExpiration().asInstanceOf[Expiry[String, Any]])
+    this(Expirations.noExpiration())
   }
 
-  def getExpiryForAccess(key: String, value: ValueSupplier[_]): EhDuration = delegate.getExpiryForAccess(key, value)
+  def getExpiryForAccess(key: String, value: ValueSupplier[_ <: AnyRef]): EhDuration = delegate.getExpiryForAccess(key, value)
 
-  def getExpiryForCreation(key: String, value: Any): EhDuration = {
+  def getExpiryForCreation(key: String, value: AnyRef): EhDuration = {
     getWrappedExpiryOrDelegate(value, delegate.getExpiryForCreation(key, value))
   }
 
-  def getExpiryForUpdate(key: String, oldValue: ValueSupplier[_], newValue: Any): EhDuration = {
+  def getExpiryForUpdate(key: String, oldValue: ValueSupplier[_ <: AnyRef], newValue: AnyRef): EhDuration = {
     getWrappedExpiryOrDelegate(newValue, delegate.getExpiryForUpdate(key, oldValue, newValue))
   }
 
-  private def getWrappedExpiryOrDelegate(value: Any, delegation: => EhDuration): EhDuration = {
+  private def getWrappedExpiryOrDelegate(value: AnyRef, delegation: => EhDuration): EhDuration = {
     value match {
       case WrappedValueWithExpiry(_, duration) => EhDuration.of(duration.length, duration.unit)
       case _ => delegation
