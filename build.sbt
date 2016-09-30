@@ -40,7 +40,7 @@ lazy val plugin = (project in file("plugin"))
     libraryDependencies += "com.typesafe.play" %% "play-specs2" % play.core.PlayVersion.current % "provided,test",
 
     libraryDependencies += "javax.cache" % "cache-api" % "1.0.0" % "provided",
-    libraryDependencies += "org.ehcache" % "ehcache" % "3.1.2" % "provided",
+    libraryDependencies += "org.ehcache" % "ehcache" % "3.1.3" % "provided",
 
     coverageEnabled := true,
 

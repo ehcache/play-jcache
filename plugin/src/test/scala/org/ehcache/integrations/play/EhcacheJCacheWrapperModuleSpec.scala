@@ -38,7 +38,7 @@ class EhcacheJCacheWrapperModuleSpec extends PlaySpecification {
     "enhance configuration always when no xml config specified" in {
       val wrapper = new EhcacheJCacheWrapper(None)
       val name = "name"
-      val baseConfig: MutableConfiguration[String, Any] = new MutableConfiguration[String, Any]()
+      val baseConfig = new MutableConfiguration[String, Any]()
 
       wrapper.enhanceConfiguration(name, baseConfig) must not beTheSameAs baseConfig
       wrapper.valueWrapper(name) must beAnInstanceOf[EhcacheValueWrapper]
@@ -52,19 +52,27 @@ class EhcacheJCacheWrapperModuleSpec extends PlaySpecification {
       wrapper.valueWrapper(name) must beAnInstanceOf[EhcacheValueWrapper]
     }
 
-    "not enhance configuration when matching template has expiry configured" in {
+    "enhance configuration when matching template has expiry configured" in {
       val wrapper = new EhcacheJCacheWrapper(Some(xmlConfig))
       val name = "template-expiry"
       wrapper.enhanceConfiguration(name, new MutableConfiguration[String, Any]())
 
-      wrapper.valueWrapper(name) must beAnInstanceOf[NoOpValueWrapper]
+      wrapper.valueWrapper(name) must beAnInstanceOf[EhcacheValueWrapper]
+    }
+
+    "enhance configuration when no matching template found" in {
+      val wrapper = new EhcacheJCacheWrapper(Some(xmlConfig))
+      val name = "template-not-existing"
+      wrapper.enhanceConfiguration(name, new MutableConfiguration[String, Any]())
+
+      wrapper.valueWrapper(name) must beAnInstanceOf[EhcacheValueWrapper]
     }
   }
 
   "EhcacheValueWrapper" should {
     val wrapper = new EhcacheValueWrapper
     val testValue = "value"
-    val duration: FiniteDuration = Duration.create(100, TimeUnit.SECONDS)
+    val duration = Duration.create(100, TimeUnit.SECONDS)
     "wrap value when expiration is not infinite" in {
       wrapper.wrapValue(testValue, duration) must beEqualTo(WrappedValueWithExpiry(testValue, duration))
 
@@ -98,7 +106,7 @@ class EhcacheJCacheWrapperModuleSpec extends PlaySpecification {
   "Ehcache" should {
     "be abe to use WrappedValueWithExpiryExpiration" in {
       val manager = newCacheManagerBuilder().build(true)
-      val template: CacheConfigurationBuilder[String, Any] = xmlConfig
+      val template = xmlConfig
               .newCacheConfigurationBuilderFromTemplate("template-wrap-expiry", classOf[String], classOf[Any])
 
       Try { manager.createCache("test", template)} must beASuccessfulTry
