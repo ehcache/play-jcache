@@ -49,3 +49,26 @@ class WrappedValueWithExpiryExpiration extends Expiry[String, Any] {
     getExpiryForCreation(key, newValue)
   }
 }
+
+class WrappedValueWithExpiryAndDelegateExpiration(delegate: Expiry[_ >: String, _ >: Any]) extends Expiry[String, Any] {
+  def getExpiryForAccess(key: String, value: ValueSupplier[_]): EhDuration = delegate.getExpiryForAccess(key, value)
+
+  def getExpiryForCreation(key: String, value: Any): EhDuration = {
+    getWrappedExpiryOrDelegate(value, delegate.getExpiryForCreation(key, value))
+  }
+
+  def getExpiryForUpdate(key: String, oldValue: ValueSupplier[_], newValue: Any): EhDuration = {
+    getWrappedExpiryOrDelegate(newValue, delegate.getExpiryForUpdate(key, oldValue, newValue))
+  }
+
+  private def getWrappedExpiryOrDelegate(value: Any, delegation: => EhDuration): EhDuration = {
+    value match {
+      case (wrapped: WrappedValueWithExpiry) =>
+        wrapped.expiration match {
+          case Duration.Inf => EhDuration.INFINITE
+          case _ => EhDuration.of(wrapped.expiration.toMillis, TimeUnit.MILLISECONDS)
+        }
+      case _ => delegation
+    }
+  }
+}
