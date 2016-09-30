@@ -16,6 +16,8 @@
 
 package org.ehcache.integrations.play
 
+import java.util.Collections.newSetFromMap
+import java.util.concurrent.ConcurrentHashMap
 import javax.cache.configuration.{Configuration => JCacheConfiguration}
 import javax.inject.{Inject, Provider, Singleton}
 
@@ -26,7 +28,6 @@ import org.ehcache.xml.XmlConfiguration
 import play.api.inject.Module
 import play.api.{Configuration, Environment}
 
-import scala.collection.mutable
 import scala.concurrent.duration.Duration
 
 /**
@@ -86,7 +87,7 @@ class NoOpValueWrapper extends ValueWrapper {
   */
 class EhcacheJCacheWrapper(xmlConfig: Option[XmlConfiguration]) extends JCacheWrapper {
 
-  val enhancedCaches = mutable.Set.empty[String]
+  val enhancedCaches = newSetFromMap[String](new ConcurrentHashMap[String, java.lang.Boolean]())
 
   def valueWrapper(name: String) = {
     enhancedCaches contains name match {
