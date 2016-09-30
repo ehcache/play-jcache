@@ -2,3 +2,70 @@
 
 This project provides a https://www.playframework.com/documentation/2.5.x/ModuleDirectory[module] for https://www.playframework.com[Play Framework]
 that enables the use of https://github.com/jsr107/jsr107spec[JCache compliant] cache implementations as providers for the https://www.playframework.com/documentation/2.5.x/ScalaCache[Play Cache API].
+
+== Features
+
+This module is intended as a full replacement for the default Play Cache implementation.
+It also requires a valid JCache implementation on the classpath.
+
+It also requires a registered `JCacheWrapper` extension to enable lifting limitations introduced by the JCache API compared to the Play Cache API.
+For example, JCache does not allow per mapping expiry which is a feature of the Play Cache API.
+
+By default Ehcache 3 is the provided JCache implementation and an Ehcache 3 based extension is registered for `JCacheWrapper`.
+
+It uses the https://www.playframework.com/documentation/2.5.x/JavaCache#Accessing-different-caches[same properties as the Play Cache module] for defining caches.
+
+=== JCacheWrapper
+
+The `JCacheWrapper` provides two methods that are invoked in different contexts:
+
+* `JCacheWrapper.enhanceConfiguration(String, javax.cache.configuration.Configuration)`
+  is invoked when the JCache module needs to create a `Cache` because it does not exist yet in the `CacheManager`.
+  This enables JCache implementations to enhance cache configurations with provider specific features.
+  The JCache module will invoke `javax.cache.CacheManager.createCache(String, javax.cache.configuration.Configuration)` with the returned configuration.
+* `JCacheWrapper.valueWrapper(String)`
+  is invoked when JCache module defines a `Cache` to be used in Play.
+  This enables JCache implementations to wrap values if/when required, optionally linked with configuration enhancements.
+  The returned `ValueWrapper` simply has symmetric methods for wrapping and unwrapping values.
+
+=== EhcacheJCacheWrapper
+
+This sub module restores full functionality to the Play Cache API by enabling per mapping expiry.
+
+This is limited to the following:
+
+* Caches must be created by the JCache module and not by initial configuration
+* Cache names will be matched with Ehcache cache templates to enable full Ehcache configuration scope
+
+The implementation works by wrapping values to contain the desired expiration.
+If expiry is configured on the cache, it will be delegated to whenever the duration is not explicitly defined as a finite duration.
+
+== Requirements
+
+This module has been developped for Play `2.5.x` and requires at least Ehcache `3.1.3` to function properly.
+
+== Usage
+
+==== Disable Play Cache default implementation
+
+```scala
+play.modules.disabled += "play.api.cache.EhCacheModule"
+```
+
+See https://www.playframework.com/documentation/2.5.x/JavaCache#Custom-implementations[Play Cache documentation] for more information
+
+==== Enable JCache module
+
+The module will register itself through its integrated `reference.conf`.
+This includes the registration of the Ehcache 3 based module providing the `JCacheWrapper` implementation.
+
+==== Custom JCacheWrapper implementation
+
+Make sure to disable the default provided implementation:
+
+```scala
+play.modules.disabled += "org.ehcache.integrations.play.EhcacheJCacheWrapperModule"
+```
+
+And of course register your own!
+
